@@ -7,12 +7,12 @@ from datetime import datetime, timedelta
 import time
 import statsmodels.api as sm
 
-# 1. 모바일 화면 최적화 설정 (중앙 집중형)
+# 1. 모바일 화면 최적화 설정
 st.set_page_config(page_title="Jamyung.AI Mobile", page_icon="🚨", layout="centered")
 
 st.title("🚨 JAMYUNG K-AI")
 st.markdown("### **실시간 평판 위기 조기 경보 시스템**")
-st.caption("K-Cloud 기반 한국어 맥락 인지 엔진 v1.0")
+st.caption("K-Cloud 기반 한국어 맥락 인지 엔진 v1.1 - 실데이터 연동 패치 버전")
 st.markdown("---")
 
 # 2. 모바일 메인 입력창
@@ -37,35 +37,43 @@ def analyze_korean_sentiment(text):
                 score -= 0.25
     return max(min(score, 1.0), -1.0)
 
-# 4. 실시간 크롤러 엔진
-def fetch_realtime_data(keyword):
+# 4. 날짜 필터 결합형 실시간 크롤러 엔진
+def fetch_realtime_data(keyword, s_date, e_date):
     scraped_data = []
-    headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
+    headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36'}
     
-    # 네이버 뉴스
+    # [채널 1: 네이버 뉴스 실시간 옵션 매칭]
+    # 사용자가 설정한 시작일과 종료일을 네이버 검색 옵션 포맷(YYYY.MM.DD)으로 변환
+    s_str = s_date.strftime('%Y.%m.%d')
+    e_str = e_date.strftime('%Y.%m.%d')
+    
+    # 네이버 최신순 정렬(sort=1) 및 날짜 수동 지정(ds, de) 조건 적용
+    news_url = f"https://naver.com{keyword}&sm=tab_opt&sort=1&ds={s_str}&de={e_str}"
+    
     try:
-        news_url = f"https://naver.com{keyword}&sm=tab_opt&sort=1"
-        res = requests.get(news_url, headers=headers, timeout=5)
+        res = requests.get(news_url, headers=headers, timeout=7)
         if res.status_code == 200:
             soup = BeautifulSoup(res.text, 'html.parser')
             articles = soup.select('.news_wrap')
-            for art in articles[:5]:
+            for art in articles[:7]: # 모바일 최적화 7개 노출
                 title = art.select_one('.news_tit').text if art.select_one('.news_tit') else ""
                 dsc = art.select_one('.api_txt_lines.dsc_txt_wrap').text if art.select_one('.api_txt_lines.dsc_txt_wrap') else ""
-                scraped_data.append({'platform': 'Naver News', 'text': f"{title} {dsc}"})
+                if title or dsc:
+                    scraped_data.append({'platform': 'Naver News', 'text': f"{title} {dsc}"})
     except: pass
 
-    # 디시인사이드
+    # [채널 2: 디시인사이드 실시간 커뮤니티 매칭]
     try:
         dc_url = f"https://dcinside.com{keyword}"
-        res = requests.get(dc_url, headers=headers, timeout=5)
+        res = requests.get(dc_url, headers=headers, timeout=7)
         if res.status_code == 200:
             soup = BeautifulSoup(res.text, 'html.parser')
             posts = soup.select('.sch_result_list > li')
-            for post in posts[:5]:
+            for post in posts[:7]:
                 title = post.select_one('.tit_txt').text if post.select_one('.tit_txt') else ""
                 desc = post.select_one('.desc_txt').text if post.select_one('.desc_txt') else ""
-                scraped_data.append({'platform': 'Dcinside', 'text': f"{title} {desc}"})
+                if title or desc:
+                    scraped_data.append({'platform': 'Dcinside', 'text': f"{title} {desc}"})
     except: pass
         
     return pd.DataFrame(scraped_data)
@@ -73,11 +81,12 @@ def fetch_realtime_data(keyword):
 # 5. 모바일용 대형 실행 버튼
 if st.button("🔔 자명고 통계 검정 및 스캔 시작", use_container_width=True):
     with st.spinner("실시간 실데이터 파싱 중..."):
-        df_real = fetch_realtime_data(target_keyword)
+        # 크롤러에 사용자가 선택한 날짜 변수(start_date, end_date)를 정밀 매칭 주입
+        df_real = fetch_realtime_data(target_keyword, start_date, end_date)
         time.sleep(1)
     
     if df_real.empty:
-        st.warning("데이터가 없습니다. 다른 키워드를 입력해 보세요.")
+        st.warning("선택하신 기간 내에 수집된 실데이터가 없습니다. 분석 기간(시작일)을 조금 더 늘려보시거나 다른 검색어를 입력해 보세요.")
     else:
         df_real['sentiment_score'] = df_real['text'].apply(analyze_korean_sentiment)
         neg_df = df_real[df_real['sentiment_score'] < 0]
@@ -97,7 +106,7 @@ if st.button("🔔 자명고 통계 검정 및 스캔 시작", use_container_wid
             status_box = st.info
             
         st.markdown("---")
-        status_box(f"🎯 **판정 결과 ──> RISK: {risk_level}**")
+        status_box(f"🎯 **자명고 판정 결과 ──> RISK: {risk_level}**")
         
         m1, m2 = st.columns(2)
         with m1: st.metric("부정 여론 수", f"{v_c}건")
