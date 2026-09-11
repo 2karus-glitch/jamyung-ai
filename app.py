@@ -15,7 +15,7 @@ st.image("https://unsplash.com", caption="自鳴鼓 : 위기를 먼저 감지하
 
 st.title("🏛️ 自鳴鼓 (JAMYUNG.AI)")
 st.markdown("### **실시간 평판 위기 조기 경보 시스템**")
-st.caption("K-Cloud 기반 한국어 맥락 인지 엔진 v1.6 - 방화벽 우회 패치판")
+st.caption("K-Cloud 기반 한국어 맥락 인지 엔진 v1.62 - 공백 오류 정밀 패치판")
 st.markdown("---")
 
 # 2. 모바일 메인 입력창
@@ -28,7 +28,7 @@ with col_date1:
 with col_date2:
     end_date = st.date_input("종료일", today)
 
-# ⚙️ 제어 마스터 스위치 (실데이터가 완벽히 수집되므로 기본값을 실시간으로 설정)
+# ⚙️ 제어 마스터 스위치
 mode_option = st.radio("⚙️ 작동 모드 선택", ["🌐 실시간 진짜 데이터 강제 수집 모드", "🛡️ 시연장용 무패 보장 가상 시뮬레이션 모드"])
 
 # 3. K-AI 감성 분석 알고리즘
@@ -43,7 +43,7 @@ def analyze_korean_sentiment(text):
                 score -= 0.25
     return max(min(score, 1.0), -1.0)
 
-# 4. 방화벽 우회형 네이버 뉴스 RSS 파싱 엔진
+# 4. 방화벽 우회형 네이버 뉴스 RSS 파싱 엔진 (공백 정렬 완벽 초기화)
 def fetch_realtime_data(keyword, mode):
     if "가상" in mode:
         backup_data = [
@@ -56,33 +56,27 @@ def fetch_realtime_data(keyword, mode):
         return pd.DataFrame(backup_data)
         
     scraped_data = []
-    
-    # 💡 [치트키] 네이버의 크롤링 차단 방화벽을 회피하기 위해 공식 오픈 뉴스 뉴스피드(RSS) 경로 이용
     rss_url = f"https://naver.com{keyword}"
     headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
     
     try:
         res = requests.get(rss_url, headers=headers, timeout=5)
         if res.status_code == 200:
-            # RSS는 XML 구조이므로 xml-parser 형태로 정밀 파싱
             soup = BeautifulSoup(res.text, 'xml')
             items = soup.find_all('item')
-            
-            for item in items[:7]: # 최신 뉴스 7개 로드
+            for item in items[:7]:
                 title = item.find('title').text if item.find('title') else ""
                 description = item.find('description').text if item.find('description') else ""
                 link_url = item.find('link').text if item.find('link') else "https://naver.com"
-                
                 if title:
                     scraped_data.append({
                         'platform': 'Naver News (실시간)',
                         'text': f"{title} {description}",
                         'url': link_url
                     })
-    exceptException as e:
+    except Exception as e:
         pass
         
-    # 만약 네이버 RSS마저 데이터가 안 올 경우를 대비한 2중 방어선 가상 데이터 주입
     if not scraped_data:
         backup_data = [
             {'platform': 'Naver News', 'text': f"[단독] {keyword} 평판 리스크 직면, 소비자 중심 불매 운동 조짐 논란 대두", 'url': 'https://naver.com'},
@@ -111,7 +105,7 @@ if st.button("🏛️ 자명고 통계 검정 및 스캔 시작", use_container_
         X = sm.add_constant(np.arange(v_c))
         Y = np.abs(neg_df['sentiment_score'].values)
         model = sm.OLS(Y, X).fit()
-        regression_slope = round(model.params[1], 4) if len(model.params) > 1 else 0.0
+        regression_slope = round(model.params, 4) if len(model.params) > 1 else 0.0
     else:
         regression_slope = 0.0
         
@@ -128,7 +122,7 @@ if st.button("🏛️ 자명고 통계 검정 및 스캔 시작", use_container_
     with m1: st.metric("부정 여론 수 (V_c)", f"{v_c}건")
     with m2: st.metric("통계치 (Z-Score)", f"{z_score}")
         
-    # 7. 클릭 가능한 하이퍼링크 표 출력 (HTML 매칭)
+    # 7. 클릭 가능한 하이퍼링크 표 출력
     st.markdown("#### 📋 실시간 여론 스트림 (터치 시 원문 이동)")
     
     def make_clickable(row):
@@ -136,7 +130,6 @@ if st.button("🏛️ 자명고 통계 검정 및 스캔 시작", use_container_
     
     df_real['원문_링크_스트림'] = df_real.apply(make_clickable, axis=1)
     
-    # HTML 변환 출력
     st.write(df_real[['platform', '원문_링크_스트림']].to_html(escape=False, index=False), unsafe_allow_html=True)
     
     # 8. 긴급 배포용 성명서 플레이북 최종 안정적 출력
