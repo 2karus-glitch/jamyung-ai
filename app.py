@@ -112,9 +112,3 @@ if st.button("🔔 자명고 통계 검정 및 스캔 시작", use_container_wid
         {start_date}~{end_date} 기준 '{target_keyword}' 리스크 감지. 
         소비자 자극 단어를 배제한 성명서 초안 생성을 시작합니다...
         """)
-streamlit
-beautifulsoup4
-pandas
-numpy
-statsmodels
-requests
