@@ -15,7 +15,7 @@ st.image("https://unsplash.com", caption="自鳴鼓 : 위기를 먼저 감지하
 
 st.title("🏛️ 自鳴鼓 (JAMYUNG.AI)")
 st.markdown("### **실시간 평판 위기 조기 경보 시스템**")
-st.caption("K-Cloud 기반 한국어 맥락 인지 엔진 v1.62 - 공백 오류 정밀 패치판")
+st.caption("K-Cloud 기반 한국어 맥락 인지 엔진 v1.63 - 타입 에러 완벽 수정판")
 st.markdown("---")
 
 # 2. 모바일 메인 입력창
@@ -43,7 +43,7 @@ def analyze_korean_sentiment(text):
                 score -= 0.25
     return max(min(score, 1.0), -1.0)
 
-# 4. 방화벽 우회형 네이버 뉴스 RSS 파싱 엔진 (공백 정렬 완벽 초기화)
+# 4. 방화벽 우회형 네이버 뉴스 RSS 파싱 엔진
 def fetch_realtime_data(keyword, mode):
     if "가상" in mode:
         backup_data = [
@@ -101,11 +101,12 @@ if st.button("🏛️ 자명고 통계 검정 및 스캔 시작", use_container_
     past_mean, past_std = 2.0, 1.1
     z_score = round((v_c - past_mean) / past_std, 2) if v_c > 0 else 0.0
     
+    # 🚨 [TypeError 버그 수정부] model.params 배열 데이터의 반올림 정밀 가공 처리 완벽 패치
     if v_c > 1:
         X = sm.add_constant(np.arange(v_c))
         Y = np.abs(neg_df['sentiment_score'].values)
         model = sm.OLS(Y, X).fit()
-        regression_slope = round(model.params, 4) if len(model.params) > 1 else 0.0
+        regression_slope = round(float(model.params[1]), 4) if len(model.params) > 1 else 0.0
     else:
         regression_slope = 0.0
         
